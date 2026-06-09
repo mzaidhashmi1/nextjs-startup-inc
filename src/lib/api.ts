@@ -9,90 +9,59 @@ export async function login(
   password: string,
   rememberMe: boolean = false
 ) {
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/login/`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
-    body: JSON.stringify({
-      email,
-      password,
-      remember_me: rememberMe,
-    }),
+    body: JSON.stringify({ email, password, remember_me: rememberMe }),
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    console.error("Login error response:", data)
-    throw new Error(data.message || "Login failed")
-  }
-
+  if (!response.ok) throw new Error(data.message || "Login failed")
   return data
 }
 
-export async function signup(
-  name: string,
-  email: string,
-  password: string
-) {
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/signup/`, {
+export async function signup(name: string, email: string, password: string) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/signup/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
-    body: JSON.stringify({
-      name,
-      email,
-      password,
-    }),
+    body: JSON.stringify({ name, email, password }),
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.message || "Signup failed")
-  }
-
+  if (!response.ok) throw new Error(data.message || "Signup failed")
   return data
 }
 
 export async function refreshAccessToken() {
   const refresh = getRefreshToken()
-
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/token/refresh/`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/token/refresh/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
     body: JSON.stringify({ refresh }),
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error("Token refresh failed")
-  }
-
+  if (!response.ok) throw new Error("Token refresh failed")
   return data
 }
 
 export async function getMe() {
   const token = getAccessToken()
-
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/users/me/`, {
+  const response = await fetch(`${API_BASE_URL}/api/users/me/`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
+      "ngrok-skip-browser-warning": "true",
     },
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to fetch user")
-  }
-
+  if (!response.ok) throw new Error(data.message || "Failed to fetch user")
   return data
 }
 
@@ -103,40 +72,30 @@ export function logout() {
 
 export async function getOrganizations() {
   const token = getAccessToken()
-
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/admin/organizations/`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/organizations/`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to fetch organizations")
-  }
-
+  if (!response.ok) throw new Error(data.message || "Failed to fetch organizations")
   return data
 }
 
 export async function getUsers() {
   const token = getAccessToken()
-
-  const response = await fetch(`${API_BASE_URL}/api/proxy/api/users/`, {
+  const response = await fetch(`${API_BASE_URL}/api/users/`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
     },
   })
-
   const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to fetch users")
-  }
-
+  if (!response.ok) throw new Error(data.message || "Failed to fetch users")
   return data
 }
