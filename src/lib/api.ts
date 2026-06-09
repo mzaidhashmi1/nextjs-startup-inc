@@ -2,9 +2,7 @@ import { getRefreshToken } from "@/lib/token"
 import { getAccessToken } from "@/lib/token"
 import { clearTokens } from "@/lib/token"
 
-const API_BASE_URL = typeof window !== "undefined"
-  ? ""
-  : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://bobby-suppositional-unplacidly.ngrok-free.dev"
 
 export async function login(
   email: string,
