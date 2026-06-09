@@ -1,7 +1,22 @@
-import type { NextConfig } from "next";
+const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/proxy/:path*",
+        destination: "https://bobby-suppositional-unplacidly.ngrok-free.dev/:path*",
+      },
+    ]
+  },
+  async headers() {
+    return [
+      {
+        source: "/api/proxy/:path*",
+        headers: [
+          { key: "ngrok-skip-browser-warning", value: "true" },
+        ],
+      },
+    ]
+  },
+}
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
+export default nextConfig
