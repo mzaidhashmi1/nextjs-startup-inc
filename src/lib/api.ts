@@ -99,3 +99,50 @@ export async function getUsers() {
   if (!response.ok) throw new Error(data.message || "Failed to fetch users")
   return data
 }
+
+export async function createUser(name: string, email: string, password: string, role: string) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/users/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({ name, email, password, role }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to create user")
+  return data
+}
+
+export async function editUserRole(userId: number, role: string) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/role/`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({ role }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to update role")
+  return data
+}
+
+export async function deleteUser(userId: number) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "ngrok-skip-browser-warning": "true",
+    },
+  })
+  if (response.status === 204) return
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to delete user")
+  return data
+}

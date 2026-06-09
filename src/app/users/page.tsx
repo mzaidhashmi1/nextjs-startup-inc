@@ -33,12 +33,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { getUsers } from "@/lib/api"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -63,7 +57,7 @@ import { ChevronDown } from "lucide-react"
 import { Plus } from "lucide-react"
 import { Inter } from 'next/font/google'
 import { Label } from "@/components/ui/label"
-import { Popover } from "@/components/ui/popover"
+import { getUsers, createUser, editUserRole, deleteUser } from "@/lib/api"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -73,18 +67,19 @@ export default function Page() {
 
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
-  const [date, setDate] = react.useState<Date>()
 
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [editUser, setEditUser] = useState({
-    name: "",
-    owner: "",
-    membership: "",
-    super: "Super",
-    status: "Active",
-    created: "",
-  })
+  // Add User dialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "user" })
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState("")
+
+  // Edit User dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [editRole, setEditRole] = useState("user")
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState("")
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -94,69 +89,81 @@ export default function Page() {
     return matchesSearch && matchesStatus
   })
 
-  const handleOpenEdit = (user: typeof users[0], realIndex: number) => {
-    setEditingIndex(realIndex)
-    setEditUser({
-      name: user.name,
-      owner: user.owner,
-      membership: user.membership,
-      super: user.super,
-      status: user.status,
-      created: user.created,
-    })
-    const parsed = new Date(user.created)
-    setDate(isNaN(parsed.getTime()) ? undefined : parsed)
-    setDialogOpen(true)
+  const loadUsers = async () => {
+    try {
+      const data = await getUsers()
+      setUsers(
+        Array.isArray(data?.results)
+          ? data.results.map((user: any) => ({
+              id: user.id,
+              name: user.name,
+              owner: user.email,
+              membership: String(user.memberships?.length ?? 0),
+              super: user.is_superuser ? "Super" : "User",
+              status: user.is_active ? "Active" : "Inactive",
+              created: format(new Date(user.date_joined), "MMMM d, yyyy"),
+            }))
+          : []
+      )
+    } catch (error) {
+      console.error("Failed to load users:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSaveEdit = () => {
-    if (editingIndex === null) return
-    const updated = [...users]
-    updated[editingIndex] = {
-      ...updated[editingIndex],
-      name: editUser.name,
-      owner: editUser.owner,
-      membership: editUser.membership,
-      super: editUser.super,
-      status: editUser.status,
-      created: date ? format(date, "MMMM d, yyyy") : editUser.created,
-    }
-    setUsers(updated)
-    setDialogOpen(false)
-    setEditingIndex(null)
-  }
-  const handleDelete = (realIndex: number) => {
-    setUsers(users.filter((_, i) => i !== realIndex))
-  }
   useEffect(() => {
-    const loadOrganizations = async () => {
-      try {
-        const data = await getUsers()
-  
-        console.log("ORGANIZATIONS API RESPONSE:", data)
-  
-        setUsers(
-    Array.isArray(data?.results)
-      ? data.results.map((user: any) => ({
-          id: user.id,
-          name: user.name,
-          owner: user.email,
-          membership: String(user.memberships.length),
-          super: user.is_superuser ? "Super" : "User",
-          status: user.is_active ? "Active" : "Inactive",
-          created: format(new Date(user.date_joined), "MMMM d, yyyy"),
-        }))
-      : []
-  )
-     } catch (error) {
-    console.error("Failed to load users:", error)
-  } finally {
-        setLoading(false)
-      }
-    }
-  
-    loadOrganizations()
+    loadUsers()
   }, [])
+
+  const handleAddUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password) return
+    setAddLoading(true)
+    setAddError("")
+    try {
+      await createUser(newUser.name, newUser.email, newUser.password, newUser.role)
+      setNewUser({ name: "", email: "", password: "", role: "user" })
+      setAddDialogOpen(false)
+      await loadUsers()
+    } catch (error: any) {
+      setAddError(error.message || "Failed to create user")
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  const handleOpenEdit = (user: any) => {
+    setEditingUser(user)
+    setEditRole(user.super === "Super" ? "owner" : "user")
+    setEditError("")
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return
+    setEditLoading(true)
+    setEditError("")
+    try {
+      await editUserRole(editingUser.id, editRole)
+      setEditDialogOpen(false)
+      setEditingUser(null)
+      await loadUsers()
+    } catch (error: any) {
+      setEditError(error.message || "Failed to update user")
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const handleDelete = async (user: any) => {
+    try {
+      await deleteUser(user.id)
+      await loadUsers()
+    } catch (error) {
+      console.error("Failed to delete user:", error)
+    }
+  }
+
   return (
     <div className={inter.className}>
       <div className="flex flex-row gap-4 px-8 pt-8 pb-4">
@@ -169,93 +176,124 @@ export default function Page() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        <div className="ml-auto">
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-900 text-white flex items-center gap-2">
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className={`${inter.className} sm:max-w-sm`}>
+              <DialogHeader>
+                <DialogTitle>Add User</DialogTitle>
+                <DialogDescription>Create a new user in your organization.</DialogDescription>
+              </DialogHeader>
+              <FieldGroup>
+                <Field>
+                  <Label htmlFor="new-name">Name</Label>
+                  <Input
+                    id="new-name"
+                    value={newUser.name}
+                    placeholder="Full Name"
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="new-email">Email</Label>
+                  <Input
+                    id="new-email"
+                    value={newUser.email}
+                    placeholder="user@example.com"
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="new-password">Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newUser.password}
+                    placeholder="Password"
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  />
+                </Field>
+                <Field>
+                  <Label>Role</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        {newUser.role}
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-32">
+                      <DropdownMenuGroup>
+                        <DropdownMenuRadioGroup value={newUser.role} onValueChange={(val) => setNewUser({ ...newUser, role: val })}>
+                          <DropdownMenuRadioItem value="owner" className={inter.className}>Owner</DropdownMenuRadioItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioItem value="admin" className={inter.className}>Admin</DropdownMenuRadioItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioItem value="user" className={inter.className}>User</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </Field>
+                {addError && <p className="text-sm text-red-500">{addError}</p>}
+              </FieldGroup>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="button" onClick={handleAddUser} className="bg-blue-900" disabled={addLoading}>
+                  {addLoading ? "Adding..." : "Add User"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className={`${inter.className} sm:max-w-sm`}>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>Edit your user details.</DialogDescription>
+            <DialogDescription>Change the role for {editingUser?.name}.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={editUser.name}
-                placeholder="User Name"
-                onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor="edit-email">User Email</Label>
-              <Input
-                id="edit-email"
-                value={editUser.owner}
-                placeholder="owner@example.com"
-                onChange={(e) => setEditUser({ ...editUser, owner: e.target.value })}
-              />
-            </Field>
-            <div className="flex flex-row gap-4">
-              <div>
-                <Field>
-                  <Label htmlFor="edit-membership">Membership</Label>
-                  <Input
-                    id="edit-membership"
-                    value={editUser.membership}
-                    placeholder="0"
-                    onChange={(e) => setEditUser({ ...editUser, membership: e.target.value })}
-                  />
-                </Field>
-              </div>
-              <Field>
-                <Label>Status</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      {editUser.status}
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-32">
-                    <DropdownMenuGroup>
-                      <DropdownMenuRadioGroup
-                        value={editUser.status}
-                        onValueChange={(val) => setEditUser({ ...editUser, status: val })}
-                      >
-                        <DropdownMenuRadioItem value="Active" className={inter.className}>Active</DropdownMenuRadioItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuRadioItem value="Inactive" className={inter.className}>Inactive</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </Field>
-            </div>
-            <Field>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    data-empty={!date}
-                    className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground"
-                  >
-                    {date ? format(date, "PPP") : <span>Date Created</span>}
-                    <ChevronDown />
+              <Label>Role</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    {editRole}
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={date} />
-                </PopoverContent>
-              </Popover>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-32">
+                  <DropdownMenuGroup>
+                    <DropdownMenuRadioGroup value={editRole} onValueChange={setEditRole}>
+                      <DropdownMenuRadioItem value="owner" className={inter.className}>Owner</DropdownMenuRadioItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioItem value="admin" className={inter.className}>Admin</DropdownMenuRadioItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioItem value="user" className={inter.className}>User</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Field>
+            {editError && <p className="text-sm text-red-500">{editError}</p>}
           </FieldGroup>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handleSaveEdit} className="bg-blue-900">
-              Save Changes
+            <Button type="button" onClick={handleSaveEdit} className="bg-blue-900" disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -284,10 +322,8 @@ export default function Page() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((user) => {
-                const realIndex = users.indexOf(user)
-                return (
-                  <TableRow key={`${user.name}-${user.owner}`} className="hover:bg-muted/30 transition-colors">
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{user.name}</TableCell>
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{user.owner}</TableCell>
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{user.membership}</TableCell>
@@ -306,7 +342,7 @@ export default function Page() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             className={inter.className}
-                            onSelect={() => handleOpenEdit(user, realIndex)}
+                            onSelect={() => handleOpenEdit(user)}
                           >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
@@ -315,7 +351,7 @@ export default function Page() {
                           <DropdownMenuItem
                             variant="destructive"
                             className={inter.className}
-                            onSelect={() => handleDelete(realIndex)}
+                            onSelect={() => handleDelete(user)}
                           >
                             <Trash className="mr-2 h-4 w-4" />
                             Delete
@@ -324,8 +360,8 @@ export default function Page() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )
-              }))}
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
