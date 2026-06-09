@@ -1,15 +1,17 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
-
 import { getRefreshToken } from "@/lib/token"
 import { getAccessToken } from "@/lib/token"
 import { clearTokens } from "@/lib/token"
+
+const API_BASE_URL = typeof window !== "undefined"
+  ? ""
+  : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
 
 export async function login(
   email: string,
   password: string,
   rememberMe: boolean = false
 ) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/login/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -36,7 +38,7 @@ export async function signup(
   email: string,
   password: string
 ) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signup/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/signup/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,7 +62,7 @@ export async function signup(
 export async function refreshAccessToken() {
   const refresh = getRefreshToken()
 
-  const response = await fetch(`${API_BASE_URL}/api/auth/token/refresh/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/auth/token/refresh/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -80,7 +82,7 @@ export async function refreshAccessToken() {
 export async function getMe() {
   const token = getAccessToken()
 
-  const response = await fetch(`${API_BASE_URL}/api/users/me/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/users/me/`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -104,12 +106,11 @@ export function logout() {
 export async function getOrganizations() {
   const token = getAccessToken()
 
-  const response = await fetch(`${API_BASE_URL}/api/admin/organizations/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/admin/organizations/`, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      "ngrok-skip-browser-warning": "true",
     },
   })
 
@@ -122,23 +123,22 @@ export async function getOrganizations() {
   return data
 }
 
-export async function getUsers(){
+export async function getUsers() {
   const token = getAccessToken()
 
-  const response = await fetch(`${API_BASE_URL}/api/users/`, {
+  const response = await fetch(`${API_BASE_URL}/api/proxy/api/users/`, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      "ngrok-skip-browser-warning": "true",
     },
   })
 
   const data = await response.json()
 
-  if (!response.ok){
+  if (!response.ok) {
     throw new Error(data.message || "Failed to fetch users")
   }
-  
+
   return data
 }
