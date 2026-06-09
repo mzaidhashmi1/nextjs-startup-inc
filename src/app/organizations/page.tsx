@@ -1,5 +1,6 @@
 'use client'
 
+import { getOrganizations, createOrg, editOrg, deleteOrg } from "@/lib/api"
 import react from "react"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
@@ -32,11 +33,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -56,16 +52,12 @@ import {
 } from "@/components/ui/table"
 import { Trash, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { ChevronDown } from "lucide-react"
-import { Plus } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ChevronDown, Plus } from "lucide-react"
 import { Inter } from 'next/font/google'
 import { Label } from "@/components/ui/label"
-import { Popover } from "@/components/ui/popover"
-import { useEffect } from "react"
-import { getOrganizations } from "@/lib/api"
 
-  const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] })
 
 export default function Page() {
   const [organizations, setOrganizations] = useState<any[]>([])
@@ -73,14 +65,19 @@ export default function Page() {
 
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
-  const [date, setDate] = react.useState<Date>()
 
+  // Add dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [newOrg, setNewOrg] = useState({ name: "", owner: "", members: "", credits: "", status: "Active" })
+  const [newOrg, setNewOrg] = useState({ name: "", owner_email: "", description: "" })
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState("")
 
+  // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [editOrg, setEditOrg] = useState({ name: "", owner: "", members: "", credits: "", status: "Active", created: "" })
+  const [editingOrg, setEditingOrg] = useState<any>(null)
+  const [editOrgState, setEditOrgState] = useState({ name: "", description: "", status: "Active" })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState("")
 
   const filteredOrganizations = organizations.filter((org) => {
     const matchesSearch =
@@ -90,89 +87,88 @@ export default function Page() {
     return matchesSearch && matchesStatus
   })
 
-  const handleAddOrganization = () => {
-    if (!newOrg.name || !newOrg.owner) return
-    const created = date ? format(date, "MMMM d, yyyy") : format(new Date(), "MMMM d, yyyy")
-    setOrganizations([...organizations, {
-      name: newOrg.name,
-      owner: newOrg.owner,
-      members: newOrg.members || "0",
-      credits: newOrg.credits || "0",
-      status: newOrg.status,
-      created,
-    }])
-    setNewOrg({ name: "", owner: "", members: "", credits: "", status: "Active" })
-    setDate(undefined)
-    setAddDialogOpen(false)
-  }
-
-  const handleOpenEdit = (org: typeof organizations[0], realIndex: number) => {
-    setEditingIndex(realIndex)
-    setEditOrg({
-      name: org.name,
-      owner: org.owner,
-      members: org.members,
-      credits: org.credits,
-      status: org.status,
-      created: org.created,
-    })
-    const parsed = new Date(org.created)
-    setDate(isNaN(parsed.getTime()) ? undefined : parsed)
-    setEditDialogOpen(true)
-  }
-
-  const handleSaveEdit = () => {
-    if (editingIndex === null) return
-    const updated = [...organizations]
-    updated[editingIndex] = {
-      ...updated[editingIndex],
-      name: editOrg.name,
-      owner: editOrg.owner,
-      members: editOrg.members,
-      credits: editOrg.credits,
-      status: editOrg.status,
-      created: date ? format(date, "MMMM d, yyyy") : editOrg.created,
-    }
-    setOrganizations(updated)
-    setEditDialogOpen(false)
-    setEditingIndex(null)
-  }
-
-  const handleDelete = (realIndex: number) => {
-    setOrganizations(organizations.filter((_, i) => i !== realIndex))
-  }
-  useEffect(() => {
   const loadOrganizations = async () => {
     try {
       const data = await getOrganizations()
-
-      console.log("ORGANIZATIONS API RESPONSE:", data)
-
       setOrganizations(
-  Array.isArray(data?.results)
-    ? data.results.map((org: any) => ({
-        id: org.id,
-        name: org.name,
-        owner: org.owner_email,
-        members: String(org.member_count),
-        credits: String(org.credits_balance),
-        status: org.is_active ? "Active" : "Inactive",
-        created: format(new Date(org.created_at), "MMMM d, yyyy"),
-      }))
-    : []
-)
-   } catch (error) {
-  console.error("Failed to load organizations:", error)
-} finally {
+        Array.isArray(data?.results)
+          ? data.results.map((org: any) => ({
+              id: org.id,
+              name: org.name,
+              owner: org.owner_email,
+              members: String(org.member_count),
+              credits: String(org.credits_balance),
+              status: org.is_active ? "Active" : "Inactive",
+              created: format(new Date(org.created_at), "MMMM d, yyyy"),
+              description: org.description,
+            }))
+          : []
+      )
+    } catch (error) {
+      console.error("Failed to load organizations:", error)
+    } finally {
       setLoading(false)
     }
   }
 
-  loadOrganizations()
-}, [])
+  useEffect(() => {
+    loadOrganizations()
+  }, [])
+
+  const handleAddOrganization = async () => {
+    if (!newOrg.name || !newOrg.owner_email) return
+    setAddLoading(true)
+    setAddError("")
+    try {
+      await createOrg(newOrg.name, newOrg.description, newOrg.owner_email)
+      setNewOrg({ name: "", owner_email: "", description: "" })
+      setAddDialogOpen(false)
+      await loadOrganizations()
+    } catch (error: any) {
+      setAddError(error.message || "Failed to create organization")
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  const handleOpenEdit = (org: any) => {
+    setEditingOrg(org)
+    setEditOrgState({
+      name: org.name,
+      description: org.description || "",
+      status: org.status,
+    })
+    setEditError("")
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingOrg) return
+    setEditLoading(true)
+    setEditError("")
+    try {
+      await editOrg(editingOrg.id, editOrgState.name, editOrgState.description, editOrgState.status === "Active")
+      setEditDialogOpen(false)
+      setEditingOrg(null)
+      await loadOrganizations()
+    } catch (error: any) {
+      setEditError(error.message || "Failed to update organization")
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const handleDelete = async (org: any) => {
+    try {
+      await deleteOrg(org.id)
+      await loadOrganizations()
+    } catch (error) {
+      console.error("Failed to delete organization:", error)
+    }
+  }
+
   return (
     <div className={inter.className}>
-
       <div className="flex flex-row gap-4 px-8 pt-8 pb-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -222,61 +218,39 @@ export default function Page() {
               <FieldGroup>
                 <Field>
                   <Label htmlFor="name-1">Name</Label>
-                  <Input id="name-1" value={newOrg.name} placeholder="Organization Name" onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })} />
+                  <Input
+                    id="name-1"
+                    value={newOrg.name}
+                    placeholder="Organization Name"
+                    onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
+                  />
                 </Field>
                 <Field>
-                  <Label htmlFor="username-1">Owner Email</Label>
-                  <Input id="username-1" value={newOrg.owner} placeholder="owner@example.com" onChange={(e) => setNewOrg({ ...newOrg, owner: e.target.value })} />
-                </Field>
-                <div className="flex flex-row gap-4">
-                  <Field>
-                    <Label htmlFor="members-1">Members</Label>
-                    <Input id="members-1" value={newOrg.members} placeholder="0" onChange={(e) => setNewOrg({ ...newOrg, members: e.target.value })} />
-                  </Field>
-                  <Field>
-                    <Label htmlFor="credits-1">Credits</Label>
-                    <Input id="credits-1" value={newOrg.credits} placeholder="0" onChange={(e) => setNewOrg({ ...newOrg, credits: e.target.value })} />
-                  </Field>
-                </div>
-                <Field>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="flex items-center gap-2">
-                        {newOrg.status}
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-32">
-                      <DropdownMenuGroup>
-                        <DropdownMenuRadioGroup value={newOrg.status} onValueChange={(val) => setNewOrg({ ...newOrg, status: val })}>
-                          <DropdownMenuRadioItem value="Active" className={inter.className}>Active</DropdownMenuRadioItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuRadioItem value="Inactive" className={inter.className}>Inactive</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Label htmlFor="owner-1">Owner Email</Label>
+                  <Input
+                    id="owner-1"
+                    value={newOrg.owner_email}
+                    placeholder="owner@example.com"
+                    onChange={(e) => setNewOrg({ ...newOrg, owner_email: e.target.value })}
+                  />
                 </Field>
                 <Field>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" data-empty={!date} className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground">
-                        {date ? format(date, "PPP") : <span>Date Created</span>}
-                        <ChevronDown />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={date} />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="desc-1">Description</Label>
+                  <Input
+                    id="desc-1"
+                    value={newOrg.description}
+                    placeholder="Description"
+                    onChange={(e) => setNewOrg({ ...newOrg, description: e.target.value })}
+                  />
                 </Field>
+                {addError && <p className="text-sm text-red-500">{addError}</p>}
               </FieldGroup>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button type="button" onClick={handleAddOrganization} className="bg-blue-900">
-                  Add Organization
+                <Button type="button" onClick={handleAddOrganization} className="bg-blue-900" disabled={addLoading}>
+                  {addLoading ? "Adding..." : "Add Organization"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -284,7 +258,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* ── Edit Dialog (single instance, outside the table) ── */}
+      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className={`${inter.className} sm:max-w-sm`}>
           <DialogHeader>
@@ -294,34 +268,37 @@ export default function Page() {
           <FieldGroup>
             <Field>
               <Label htmlFor="edit-name">Name</Label>
-              <Input id="edit-name" value={editOrg.name} placeholder="Organization Name" onChange={(e) => setEditOrg({ ...editOrg, name: e.target.value })} />
+              <Input
+                id="edit-name"
+                value={editOrgState.name}
+                placeholder="Organization Name"
+                onChange={(e) => setEditOrgState({ ...editOrgState, name: e.target.value })}
+              />
             </Field>
             <Field>
-              <Label htmlFor="edit-owner">Owner Email</Label>
-              <Input id="edit-owner" value={editOrg.owner} placeholder="owner@example.com" onChange={(e) => setEditOrg({ ...editOrg, owner: e.target.value })} />
+              <Label htmlFor="edit-desc">Description</Label>
+              <Input
+                id="edit-desc"
+                value={editOrgState.description}
+                placeholder="Description"
+                onChange={(e) => setEditOrgState({ ...editOrgState, description: e.target.value })}
+              />
             </Field>
-            <div className="flex flex-row gap-4">
-              <Field>
-                <Label htmlFor="edit-members">Members</Label>
-                <Input id="edit-members" value={editOrg.members} placeholder="0" onChange={(e) => setEditOrg({ ...editOrg, members: e.target.value })} />
-              </Field>
-              <Field>
-                <Label htmlFor="edit-credits">Credits</Label>
-                <Input id="edit-credits" value={editOrg.credits} placeholder="0" onChange={(e) => setEditOrg({ ...editOrg, credits: e.target.value })} />
-              </Field>
-            </div>
             <Field>
               <Label>Status</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center gap-2">
-                    {editOrg.status}
+                    {editOrgState.status}
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-32">
                   <DropdownMenuGroup>
-                    <DropdownMenuRadioGroup value={editOrg.status} onValueChange={(val) => setEditOrg({ ...editOrg, status: val })}>
+                    <DropdownMenuRadioGroup
+                      value={editOrgState.status}
+                      onValueChange={(val) => setEditOrgState({ ...editOrgState, status: val })}
+                    >
                       <DropdownMenuRadioItem value="Active" className={inter.className}>Active</DropdownMenuRadioItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuRadioItem value="Inactive" className={inter.className}>Inactive</DropdownMenuRadioItem>
@@ -330,26 +307,14 @@ export default function Page() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </Field>
-            <Field>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" data-empty={!date} className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground">
-                    {date ? format(date, "PPP") : <span>Date Created</span>}
-                    <ChevronDown />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={date} />
-                </PopoverContent>
-              </Popover>
-            </Field>
+            {editError && <p className="text-sm text-red-500">{editError}</p>}
           </FieldGroup>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handleSaveEdit} className="bg-blue-900">
-              Save Changes
+            <Button type="button" onClick={handleSaveEdit} className="bg-blue-900" disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -378,14 +343,8 @@ export default function Page() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredOrganizations.map((org) => {
-                  const realIndex = organizations.indexOf(org)
-                 return (
-            
-        <TableRow
-          key={org.id ?? `${org.name}-${org.owner}`}
-          className="hover:bg-muted/30 transition-colors"
-        >
+                filteredOrganizations.map((org) => (
+                  <TableRow key={org.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{org.name}</TableCell>
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{org.owner}</TableCell>
                     <TableCell className="py-4 px-4 text-center text-foreground border border-border">{org.members}</TableCell>
@@ -402,7 +361,7 @@ export default function Page() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             className={inter.className}
-                            onSelect={() => handleOpenEdit(org, realIndex)}
+                            onSelect={() => handleOpenEdit(org)}
                           >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
@@ -411,7 +370,7 @@ export default function Page() {
                           <DropdownMenuItem
                             variant="destructive"
                             className={inter.className}
-                            onSelect={() => handleDelete(realIndex)}
+                            onSelect={() => handleDelete(org)}
                           >
                             <Trash className="mr-2 h-4 w-4" />
                             Delete
@@ -420,8 +379,8 @@ export default function Page() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )
-              }))}
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

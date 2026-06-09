@@ -146,3 +146,50 @@ export async function deleteUser(userId: number) {
   if (!response.ok) throw new Error(data.message || "Failed to delete user")
   return data
 }
+
+export async function createOrg(name: string, description: string, owner_email: string) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/admin/organizations/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({ name, description, owner_email }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to create organization")
+  return data
+}
+
+export async function editOrg(orgId: number, name: string, description: string, is_active: boolean) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/admin/organizations/${orgId}/`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({ name, description, is_active }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to update name, description, is_active")
+  return data
+}
+
+export async function deleteOrg(orgId: number) {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/admin/organizations/${orgId}/`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "ngrok-skip-browser-warning": "true",
+    },
+  })
+  if (response.status === 204) return
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || "Failed to delete organization")
+  return data
+}

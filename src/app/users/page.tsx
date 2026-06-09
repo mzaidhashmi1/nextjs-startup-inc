@@ -68,13 +68,11 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Add User dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "user" })
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState("")
 
-  // Edit User dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [editRole, setEditRole] = useState("user")
@@ -256,7 +254,6 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className={`${inter.className} sm:max-w-sm`}>
           <DialogHeader>
