@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params
-  const url = `${BACKEND}/${path.join("/")}/`
+  const url = `${BACKEND}/${path.join("/")}`
 
   const authHeader = req.headers.get("Authorization")
 
@@ -28,7 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params
-  const url = `${BACKEND}/${path.join("/")}/`
+  const url = `${BACKEND}/${path.join("/")}`
 
   const authHeader = req.headers.get("Authorization")
   const body = await req.text()
@@ -52,7 +52,7 @@ export async function PATCH(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params
-  const url = `${BACKEND}/${path.join("/")}/`
+  const url = `${BACKEND}/${path.join("/")}`
 
   const authHeader = req.headers.get("Authorization")
   const body = await req.text()
@@ -76,7 +76,7 @@ export async function DELETE(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params
-  const url = `${BACKEND}/${path.join("/")}/`
+  const url = `${BACKEND}/${path.join("/")}`
 
   const authHeader = req.headers.get("Authorization")
 
